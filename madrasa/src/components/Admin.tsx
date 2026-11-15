@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { clearSupabaseConfig, loadSupabaseConfig, saveSupabaseConfig, validateSupabaseConfig } from '@/lib/store';
 import { isLearned } from '@/lib/srs';
 import { LEARN_STREAK, NEW_WORDS_ID, type Category, type ProgressMap, type Word } from '@/lib/types';
 import type { AddResult } from './Search';
-import { Check, Lock, Plus, Trash, Unlock } from './icons';
+import { Check, Loader, Lock, Plus, Trash, Unlock } from './icons';
 
 interface Props {
+  storeKind: 'local' | 'supabase';
   categories: Category[];
   userWords: Word[];
   progress: ProgressMap;
@@ -14,7 +16,73 @@ interface Props {
   onRemove: (id: string) => void;
 }
 
-export function Admin({ categories, userWords, progress, onAdd, onRemove }: Props) {
+function SupabaseSettings({ storeKind }: { storeKind: 'local' | 'supabase' }) {
+  const found = loadSupabaseConfig();
+  const [url, setUrl] = useState(found?.config.url ?? '');
+  const [key, setKey] = useState(found?.config.anonKey ?? '');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const check = async () => {
+    const bad = validateSupabaseConfig(url, key);
+    if (bad) return setMsg({ ok: false, text: bad });
+    setBusy(true);
+    setMsg(null);
+    const { testSupabaseConnection } = await import('@/lib/supabase-store');
+    const r = await testSupabaseConnection({ url: url.trim().replace(/\/+$/, ''), anonKey: key.trim() });
+    setMsg({ ok: r.ok, text: r.message });
+    setBusy(false);
+  };
+  const save = () => {
+    const bad = validateSupabaseConfig(url, key);
+    if (bad) return setMsg({ ok: false, text: bad });
+    saveSupabaseConfig({ url, anonKey: key });
+    window.location.reload();
+  };
+  const clear = () => {
+    clearSupabaseConfig();
+    window.location.reload();
+  };
+
+  return (
+    <div className="card form" data-testid="supabase-settings">
+      <h2>חיבור Supabase</h2>
+      <p className="muted">
+        מצב נוכחי: {storeKind === 'supabase' ? 'מחובר ל-Supabase' : 'מקומי (localStorage)'}
+        {found ? (found.source === 'manual' ? ' · מפתחות שהוזנו כאן (גוברים על Vercel)' : ' · מפתחות מ-Vercel') : ''}
+      </p>
+      <label>
+        Supabase URL
+        <input value={url} onChange={(e) => { setUrl(e.target.value); setMsg(null); }} dir="ltr" placeholder="https://xxxx.supabase.co" autoComplete="off" data-testid="sb-url" />
+      </label>
+      <label>
+        Anon Key (public)
+        <input value={key} onChange={(e) => { setKey(e.target.value); setMsg(null); }} dir="ltr" autoComplete="off" spellCheck={false} data-testid="sb-key" />
+      </label>
+      <p className="muted small">המפתחות נשמרים רק בדפדפן הזה. השתמשו במפתח ה-anon/publishable בלבד, לא ב-service role.</p>
+      <div className="actions">
+        <button type="button" className="btn" onClick={check} disabled={busy} data-testid="sb-test">
+          {busy ? <Loader className="spin" /> : <Check />} בדיקת חיבור
+        </button>
+        <button type="button" className="btn primary" onClick={save} data-testid="sb-save">
+          שמירה וטעינה מחדש
+        </button>
+        {found?.source === 'manual' && (
+          <button type="button" className="btn ghost" onClick={clear} data-testid="sb-clear">
+            ניקוי
+          </button>
+        )}
+      </div>
+      {msg && (
+        <p className={msg.ok ? 'ok-text' : 'error'} role="status" data-testid="sb-msg">
+          {msg.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function Admin({ storeKind, categories, userWords, progress, onAdd, onRemove }: Props) {
   const real = categories.filter((c) => c.id !== NEW_WORDS_ID);
   const [form, setForm] = useState({ hebrew: '', translit: '', arabic: '', categoryId: '' });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -107,6 +175,7 @@ export function Admin({ categories, userWords, progress, onAdd, onRemove }: Prop
           })}
         </ul>
       </div>
+      <SupabaseSettings storeKind={storeKind} />
     </section>
   );
 }

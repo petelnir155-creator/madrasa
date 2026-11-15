@@ -83,7 +83,8 @@ export function App() {
         console.error(e);
         s = new LocalStore();
         d = await s.load();
-        if (!off) setNotice('החיבור ל-Supabase נכשל. עובדים מקומית (localStorage).');
+        const why = e instanceof Error ? e.message : String(e);
+        if (!off) setNotice(`החיבור ל-Supabase נכשל (${why}). עובדים מקומית. אפשר להזין מפתחות במסך הניהול ולבדוק חיבור.`);
       }
       if (off) return;
       setStore(s);
@@ -301,7 +302,7 @@ export function App() {
         />
       )}
 
-      {view === 'admin' && <Admin categories={allCategories} userWords={userWords} progress={progress} onAdd={(d, s) => addWord(d, s as 'admin')} onRemove={removeWord} />}
+      {view === 'admin' && <Admin storeKind={store?.kind ?? 'local'} categories={allCategories} userWords={userWords} progress={progress} onAdd={(d, s) => addWord(d, s as 'admin')} onRemove={removeWord} />}
     </main>
   );
 }
