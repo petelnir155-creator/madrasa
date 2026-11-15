@@ -1,6 +1,3 @@
-import { expandVariants, normalizeText } from './normalize';
-import { PERSONA_PROMPT } from './persona';
-import type { AiSentence } from './game';
 
 /** Provider-agnostic LLM call – injected so everything below is unit-testable without a network. */
 export type LLM = (req: { system: string; user: string; maxTokens: number }) => Promise<string>;
@@ -20,59 +17,6 @@ export function extractJson(text: string): unknown {
 }
 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
-
-/**
- * Accept the model's sentence only if the blank really is the target word.
- * `word` may differ from the lexicon form only by niqqud/spacing/punctuation.
- */
-export function validateAiSentence(raw: unknown, translit: string): AiSentence | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const r = raw as Record<string, unknown>;
-  const before = typeof r.before === 'string' ? r.before.slice(0, 200) : '';
-  const after = typeof r.after === 'string' ? r.after.slice(0, 200) : '';
-  const word = str(r.word, 80);
-  const hebrew = str(r.hebrew, 300);
-  if (!word || !hebrew) return null;
-  const ok = expandVariants(translit).some((v) => normalizeText(v) === normalizeText(word));
-  if (!ok) return null;
-  if ((before + after).trim().length < 3) return null;
-  return { before, word: translit, after, hebrew };
-}
-
-export interface SentenceInput {
-  hebrew: string;
-  translit: string;
-  arabic?: string;
-}
-
-export function sentencePrompt(w: SentenceInput): { system: string; user: string } {
-  const system = `You write ONE short example sentence for a Hebrew speaker learning spoken Levantine Arabic.
-${TRANSCRIPTION_RULES}
-${PERSONA_PROMPT}
-Rules:
-- Max 10 words, natural spoken register.
-- The target word must appear exactly once, in the SAME form as given (do not inflect it). If a clitic is attached (ב, ל, ו, אל), keep it in "before" so the blank is only the target word.
-- Reply with JSON only: {"before": "...", "word": "<target word exactly as given>", "after": "...", "hebrew": "<natural Hebrew translation of the whole sentence>"}
-- "before" + word + "after" must read as the full sentence (add spaces inside before/after where needed).`;
-  const user = `Target word: ${w.translit}${w.arabic ? ` (${w.arabic})` : ''} = ${w.hebrew}`;
-  return { system, user };
-}
-
-export async function generateSentence(w: SentenceInput, llm: LLM, attempts = 2): Promise<AiSentence> {
-  const { system, user } = sentencePrompt(w);
-  let lastErr: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const reply = await llm({ system, user, maxTokens: 400 });
-      const ok = validateAiSentence(extractJson(reply), w.translit);
-      if (ok) return ok;
-      lastErr = new Error('sentence failed validation');
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error('sentence generation failed');
-}
 
 export interface Translation {
   hebrew: string;

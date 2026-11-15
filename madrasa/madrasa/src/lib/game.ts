@@ -4,18 +4,6 @@ import type { ProgressMap, Word } from './types';
 
 export type RoundMode = 'mixed' | 'choice' | 'typing-h2t' | 'typing-t2h';
 
-/** A validated, LLM-generated sentence for one word (see ai.ts). */
-export interface AiSentence {
-  /** text before the blank – any clitic prefix stays visible here ("בְּ") */
-  before: string;
-  /** the target word exactly as in the lexicon (this is what the correct button shows) */
-  word: string;
-  /** text after the blank */
-  after: string;
-  /** Hebrew translation of the whole sentence */
-  hebrew: string;
-}
-
 export interface Option {
   wordId: string;
   label: string;
@@ -32,8 +20,7 @@ export interface SentenceQuestion extends Base {
   before: string;
   after: string;
   hint: string;
-  translation?: string;
-  source: 'lesson' | 'ai';
+  source: 'lesson';
   options: Option[];
   answerIndex: number;
 }
@@ -125,7 +112,7 @@ function options(word: Word, distractors: Word[], rng: Rng) {
 }
 
 /** Try to build a fill-in-the-blank question from the word's lesson sentences (or a given AI one). */
-export function sentenceQuestion(word: Word, distractors: Word[], rng: Rng, ai?: AiSentence, id = word.id): SentenceQuestion | null {
+export function sentenceQuestion(word: Word, distractors: Word[], rng: Rng, id = word.id): SentenceQuestion | null {
   const o = (extra: Omit<SentenceQuestion, 'id' | 'wordId' | 'kind' | 'mode' | 'options' | 'answerIndex' | 'hint'>): SentenceQuestion => ({
     id,
     wordId: word.id,
@@ -135,8 +122,6 @@ export function sentenceQuestion(word: Word, distractors: Word[], rng: Rng, ai?:
     ...options(word, distractors, rng),
     ...extra,
   });
-
-  if (ai) return o({ before: ai.before, after: ai.after, translation: ai.hebrew, source: 'ai' });
 
   const located = shuffle(word.sentences, rng)
     .map((s) => ({ s, m: locateInSentence(s.text, s.target) ?? locateInSentence(s.text, word.translit) }))
@@ -166,14 +151,13 @@ export function buildQuestion(
   progress: ProgressMap,
   mode: RoundMode,
   rng: Rng = Math.random,
-  ai?: AiSentence,
   index = 0,
 ): Question {
   const id = `${index}:${word.id}`;
   const distractors = () => pickDistractors(word, pool, all, 3, rng);
   const choice = (): Question => {
-    if ((ai || word.sentences.length) && (ai || rng() < 0.65)) {
-      const q = sentenceQuestion(word, distractors(), rng, ai, id);
+    if (word.sentences.length && rng() < 0.65) {
+      const q = sentenceQuestion(word, distractors(), rng, id);
       if (q) return q;
     }
     return meaningQuestion(word, distractors(), rng, id);
@@ -196,11 +180,11 @@ export function buildRound(
   all: readonly Word[],
   progress: ProgressMap,
   cfg: RoundConfig,
-  opts: { rng?: Rng; now?: number; ai?: Record<string, AiSentence>; picked?: readonly Word[] } = {},
+  opts: { rng?: Rng; now?: number; picked?: readonly Word[] } = {},
 ): Question[] {
   const rng = opts.rng ?? Math.random;
   const words = opts.picked ?? pickWords(pool, progress, cfg.size, opts.now ?? Date.now(), rng);
-  return shuffle(words, rng).map((w, i) => buildQuestion(w, pool, all, progress, cfg.mode, rng, opts.ai?.[w.id], i));
+  return shuffle(words, rng).map((w, i) => buildQuestion(w, pool, all, progress, cfg.mode, rng, i));
 }
 
 export interface Verdict {

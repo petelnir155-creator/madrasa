@@ -5,8 +5,8 @@ import { buildSeed, type Raw } from '../src/lib/seed-build';
 import { buildCategoryViews, effectiveCategoryId } from '../src/lib/catalog';
 import { applyAnswer, recordAnswer } from '../src/lib/srs';
 import { buildRound, checkChoice, checkTyping, pickDistractors, seededRng, summarize, uniqueById, type SentenceQuestion } from '../src/lib/game';
-import { generateSentence, translateQuery, validateAiSentence } from '../src/lib/ai';
-import { handleSentences, handleTranslate } from '../src/lib/api-handlers';
+import { translateQuery } from '../src/lib/ai';
+import { handleTranslate } from '../src/lib/api-handlers';
 import { NEW_WORDS_ID, type ProgressMap, type Word } from '../src/lib/types';
 import { normalizeText, stripMarks, wordKey } from '../src/lib/normalize';
 import { NotConfiguredError, rateLimited } from '../src/lib/llm';
@@ -149,34 +149,7 @@ test('distractors never include the answer or a same-meaning word', () => {
   assert.ok(d.every((x) => x.id !== w.id));
 });
 
-test('AI sentence validation: blank must be the target word', () => {
-  const ok = validateAiSentence({ before: 'אַנַא בַּ(א)שְׁרַב ', word: 'קַהְוַה', after: ' פִי תַל אֲבִּיבּ', hebrew: 'אני שותה קפה בתל אביב' }, 'קַהְוַה');
-  assert.ok(ok);
-  assert.equal(ok!.word, 'קַהְוַה');
-  assert.equal(validateAiSentence({ before: 'x y', word: 'משהו', after: '', hebrew: 'h' }, 'קַהְוַה'), null);
-  assert.equal(validateAiSentence({ before: 'a b c', word: 'קהוה', after: '', hebrew: '' }, 'קַהְוַה'), null);
-  assert.equal(validateAiSentence(null, 'x'), null);
-});
-
-test('generateSentence: persona is in the prompt, bad replies are retried', async () => {
-  const prompts: string[] = [];
-  let n = 0;
-  const llm = async (r: { system: string; user: string }) => {
-    prompts.push(r.system);
-    return n++ === 0
-      ? 'sorry, here you go'
-      : '```json\n{"before":"אַנַא ","word":"אֶסְפְּרֵסּוֹ","after":" פִי אִלְמַכְּתַב","hebrew":"אני אספרסו במשרד"}\n```';
-  };
-  const s = await generateSentence({ hebrew: 'אספרסו', translit: 'אֶסְפְּרֵסּוֹ' }, llm);
-  assert.equal(s.word, 'אֶסְפְּרֵסּוֹ');
-  assert.equal(n, 2);
-  assert.match(prompts[0], /Tel Aviv/);
-  assert.match(prompts[0], /advertising copywriter/);
-  assert.match(prompts[0], /espresso/);
-  assert.match(prompts[0], /Hapoel Tel Aviv/);
-});
-
-test('translateQuery + handlers', async () => {
+test('translate (the only remaining AI feature): validation + handlers', async () => {
   const llm = async () => '{"hebrew":"קפה","arabic":"قهوة","translit":"קַהְוַה","category":"אוכל ושתייה: משקאות","note":""}';
   const t = await translateQuery('coffee', ['אוכל ושתייה: משקאות'], llm);
   assert.equal(t.arabic, 'قهوة');
@@ -191,10 +164,6 @@ test('translateQuery + handlers', async () => {
     throw new NotConfiguredError();
   });
   assert.equal(nc.status, 503);
-  const s = await handleSentences({ words: [{ id: 'a', hebrew: 'קפה', translit: 'קַהְוַה' }] }, () => async () => '{"before":"בִּדִּי ","word":"קַהְוַה","after":" בְּבֵית","hebrew":"אני רוצה קפה בבית"}');
-  assert.equal(s.status, 200);
-  assert.ok((s.json.sentences as Record<string, unknown>).a);
-  assert.equal((await handleSentences({ words: [] }, () => llm)).status, 400);
 });
 
 test('rate limiter blocks after the limit', () => {
