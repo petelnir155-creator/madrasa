@@ -1,5 +1,6 @@
-import { generateSentence, translateQuery, type LLM } from './ai';
+import { translateQuery, type LLM } from './ai';
 import { NotConfiguredError } from './llm';
+
 
 export interface HandlerResult {
   status: number;
@@ -7,33 +8,6 @@ export interface HandlerResult {
 }
 
 const isStr = (v: unknown): v is string => typeof v === 'string';
-
-/** POST /api/sentence  { words: [{id, hebrew, translit, arabic?}] }  (max 10 per call) */
-export async function handleSentences(body: unknown, getLlm: () => LLM): Promise<HandlerResult> {
-  const words = (body as { words?: unknown })?.words;
-  if (!Array.isArray(words) || words.length === 0 || words.length > 10) {
-    return { status: 400, json: { error: 'words must be an array of 1-10 items' } };
-  }
-  const clean = words.filter(
-    (w): w is { id: string; hebrew: string; translit: string; arabic?: string } =>
-      !!w && isStr(w.id) && isStr(w.hebrew) && isStr(w.translit) && w.translit.length < 120 && w.hebrew.length < 200,
-  );
-  if (!clean.length) return { status: 400, json: { error: 'invalid words' } };
-
-  let llm: LLM;
-  try {
-    llm = getLlm();
-  } catch (e) {
-    if (e instanceof NotConfiguredError) return { status: 503, json: { error: 'not_configured' } };
-    throw e;
-  }
-  const settled = await Promise.allSettled(clean.map((w) => generateSentence(w, llm)));
-  const sentences: Record<string, unknown> = {};
-  settled.forEach((r, i) => {
-    if (r.status === 'fulfilled') sentences[clean[i].id] = r.value;
-  });
-  return { status: 200, json: { sentences } };
-}
 
 /** POST /api/translate  { query, categories: string[] } */
 export async function handleTranslate(body: unknown, getLlm: () => LLM): Promise<HandlerResult> {
