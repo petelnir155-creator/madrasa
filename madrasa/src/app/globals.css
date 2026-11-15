@@ -83,6 +83,16 @@ select, input[type='text'], input:not([type]) { background: var(--surface-2); bo
 .bar { height: 5px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--good); border-radius: 99px; transition: width 0.4s; }
 
+/* accordion */
+.accordion { display: flex; flex-direction: column; gap: 8px; }
+.acc-item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.acc-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; background: transparent; border: 0; text-align: start; color: var(--text); }
+.acc-head:hover { background: var(--surface-2); }
+.acc-title { font-weight: 650; font-size: 1.05rem; }
+.acc-meta { margin-inline-start: auto; font-size: 0.85rem; }
+.acc-panel { overflow: hidden; }
+.acc-grid { padding: 4px 14px 14px; }
+
 /* search */
 .search { display: flex; flex-direction: column; gap: 8px; }
 .search-box { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 14px; color: var(--muted); }

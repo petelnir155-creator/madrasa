@@ -9,7 +9,8 @@ import { createStore, LocalStore, type Store } from '@/lib/store';
 import { makeUserWord } from '@/lib/userwords';
 import { NEW_WORDS_ID, type Category, type ProgressMap, type Word, type WordSource } from '@/lib/types';
 import { Admin } from './Admin';
-import { LayoutGrid, Loader, Lock, Play, Sparkles, ShieldCheck, BookOpen, Keyboard, ListChecks, Clock, Check } from './icons';
+import { CategoryGroups } from './CategoryGroups';
+import { LayoutGrid, Loader, Lock, Play, Sparkles, ShieldCheck, BookOpen, Keyboard, ListChecks, Clock } from './icons';
 import { Results } from './Results';
 import { Round } from './Round';
 import { SearchBar, type AddResult } from './Search';
@@ -272,28 +273,7 @@ export function App() {
             <div className="muted small">{staging.wordIds.length} מילים · נפתחות לקטגוריה שלהן אחרי 3 תשובות נכונות ברצף</div>
           </button>
 
-          {grouped.map(([group, list]) => (
-            <section key={group} className="group">
-              <h2>{group}</h2>
-              <div className="grid">
-                {list.map((v) => {
-                  const title = v.name.includes(':') ? v.name.split(':').slice(1).join(':').trim() : v.name;
-                  const pct = v.wordIds.length ? (v.learned / v.wordIds.length) * 100 : 0;
-                  return (
-                    <button key={v.id} className="card cat" onClick={() => startRound(poolOf(v.wordIds), v.name)} disabled={starting} data-testid="category-card">
-                      <div className="cat-title">{title}</div>
-                      <div className="muted small">
-                        {v.learned > 0 && <Check />} {v.learned}/{v.wordIds.length} נלמדו
-                      </div>
-                      <div className="bar">
-                        <div className="bar-fill" style={{ width: `${pct}%` }} />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+          <CategoryGroups groups={grouped} disabled={starting} onStart={(v) => startRound(poolOf(v.wordIds), v.name)} />
         </>
       )}
 

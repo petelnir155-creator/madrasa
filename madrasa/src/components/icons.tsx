@@ -3,6 +3,8 @@ import {
   ArrowLeft as _ArrowLeft,
   BookOpen as _BookOpen,
   Check as _Check,
+  ChevronDown as _ChevronDown,
+  ChevronUp as _ChevronUp,
   Clock as _Clock,
   Keyboard as _Keyboard,
   Languages as _Languages,
@@ -33,6 +35,8 @@ function wrap(Icon: LucideIcon): LucideIcon {
 export const ArrowLeft = wrap(_ArrowLeft);
 export const BookOpen = wrap(_BookOpen);
 export const Check = wrap(_Check);
+export const ChevronDown = wrap(_ChevronDown);
+export const ChevronUp = wrap(_ChevronUp);
 export const Clock = wrap(_Clock);
 export const Keyboard = wrap(_Keyboard);
 export const Languages = wrap(_Languages);
