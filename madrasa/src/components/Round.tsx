@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { checkChoice, checkTyping, summarize, type Question, type RoundSummary, type Verdict } from '@/lib/game';
 import type { Word } from '@/lib/types';
-import { ArrowLeft, Check, Keyboard, ListChecks, Sparkles, X } from './icons';
+import { ArrowLeft, Check, Keyboard, ListChecks, X } from './icons';
 
 interface Props {
   questions: Question[];
@@ -121,11 +121,6 @@ export function Round({ questions, wordsById, onAnswer, onFinish, onExit }: Prop
             <>
               <p className="label">
                 <ListChecks /> השלימו את המשפט
-                {q.source === 'ai' && (
-                  <span className="chip accent">
-                    <Sparkles /> משפט אישי
-                  </span>
-                )}
               </p>
               <p className="sentence" data-testid="sentence">
                 {q.before}
@@ -135,7 +130,6 @@ export function Round({ questions, wordsById, onAnswer, onFinish, onExit }: Prop
                 {q.after}
               </p>
               <p className="hint">פירוש המילה החסרה: {q.hint}</p>
-              {q.translation && answered && <p className="hint">תרגום: {q.translation}</p>}
             </>
           )}
 
