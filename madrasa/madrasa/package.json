@@ -1,0 +1,33 @@
+{
+  "name": "madrasa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Levantine Arabic super app – spaced repetition, active recall and AI-generated sentences",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "extract": "python3 scripts/extract_xlsx.py",
+    "seed": "tsx scripts/build-seed.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "framer-motion": "^11.18.0",
+    "lucide-react": "^0.460.0",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
