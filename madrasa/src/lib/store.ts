@@ -58,14 +58,55 @@ export class LocalStore implements Store {
   }
 }
 
-export function supabaseConfigured(): boolean {
-  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+export interface SupabaseConfig {
+  url: string;
+  anonKey: string;
+}
+export type ConfigSource = 'manual' | 'env';
+
+const KEY_CONFIG = 'madrasa.v1.supabaseConfig';
+
+/** Returns a readable error, or null when the pair looks valid. */
+export function validateSupabaseConfig(url: string, anonKey: string): string | null {
+  try {
+    const u = new URL(url.trim());
+    if (u.protocol !== 'https:') return 'ה-URL חייב להתחיל ב-https://';
+  } catch {
+    return 'ה-URL אינו תקין (צריך להיות כמו https://xxxx.supabase.co)';
+  }
+  const k = anonKey.trim();
+  if (k.length < 20 || /\s/.test(k)) return 'ה-Anon Key נראה לא תקין';
+  if (k.startsWith('sb_secret_') || /service_role/i.test(k)) return 'זה מפתח סודי (service role). השתמשו רק ב-Anon / publishable key.';
+  return null;
+}
+
+/** A key typed into the app wins over Vercel env vars, so a bad env setup can be bypassed. */
+export function loadSupabaseConfig(): { config: SupabaseConfig; source: ConfigSource } | null {
+  const manual = read<Partial<SupabaseConfig> | null>(KEY_CONFIG, null);
+  if (manual?.url && manual.anonKey) return { config: { url: manual.url, anonKey: manual.anonKey }, source: 'manual' };
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (url && anonKey) return { config: { url, anonKey }, source: 'env' };
+  return null;
+}
+
+export function saveSupabaseConfig(c: SupabaseConfig) {
+  write(KEY_CONFIG, { url: c.url.trim().replace(/\/+$/, ''), anonKey: c.anonKey.trim() });
+}
+
+export function clearSupabaseConfig() {
+  try {
+    window.localStorage.removeItem(KEY_CONFIG);
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function createStore(): Promise<Store> {
-  if (supabaseConfigured()) {
+  const found = loadSupabaseConfig();
+  if (found) {
     const { SupabaseStore } = await import('./supabase-store');
-    return new SupabaseStore();
+    return new SupabaseStore(found.config);
   }
   return new LocalStore();
 }

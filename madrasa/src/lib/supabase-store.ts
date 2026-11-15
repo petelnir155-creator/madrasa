@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LoadedData, Store } from './store';
+import type { LoadedData, Store, SupabaseConfig } from './store';
 import type { Category, ProgressMap, Sentence, Word, WordProgress } from './types';
 
 /**
@@ -42,10 +42,12 @@ export class SupabaseStore implements Store {
   private client?: SupabaseClient;
   private userId?: string;
 
+  constructor(private readonly config: SupabaseConfig) {}
+
   private async db(): Promise<{ client: SupabaseClient; userId: string }> {
     if (this.client && this.userId) return { client: this.client, userId: this.userId };
     const { createClient } = await import('@supabase/supabase-js');
-    const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const client = createClient(this.config.url, this.config.anonKey);
     let { data } = await client.auth.getSession();
     if (!data.session) {
       const res = await client.auth.signInAnonymously();
@@ -126,5 +128,30 @@ export class SupabaseStore implements Store {
       learned_at: p.learnedAt ? iso(p.learnedAt) : null,
     });
     if (error) throw error;
+  }
+}
+
+/** Settings-screen "test connection": says exactly which step failed and what to do. */
+export async function testSupabaseConnection(config: SupabaseConfig): Promise<{ ok: boolean; message: string }> {
+  try {
+    const store = new SupabaseStore(config);
+    const { client } = await (store as unknown as { db(): Promise<{ client: SupabaseClient }> }).db();
+    const cats = await client.from('categories').select('id', { count: 'exact', head: true });
+    if (cats.error) {
+      const m = cats.error.message;
+      if (/relation|does not exist|schema cache/i.test(m)) return { ok: false, message: 'החיבור והכניסה עובדים, אבל הטבלאות חסרות. הריצו את supabase/migrations/0001_init.sql ב-SQL Editor.' };
+      return { ok: false, message: `שגיאת מסד נתונים: ${m}` };
+    }
+    const words = await client.from('words').select('id', { count: 'exact', head: true });
+    if (!words.error && (words.count ?? 0) === 0) {
+      return { ok: true, message: 'מחובר. הטבלאות ריקות, הריצו supabase/seed.sql (עד אז האפליקציה משתמשת במילים המובנות).' };
+    }
+    return { ok: true, message: `מחובר. ${words.count ?? 0} מילים במסד.` };
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    if (/anonymous/i.test(m)) return { ok: false, message: 'ה-URL והמפתח תקינים, אבל Anonymous sign-ins כבוי. הפעילו ב-Authentication > Providers > Anonymous.' };
+    if (/failed to fetch|networkerror|load failed/i.test(m)) return { ok: false, message: 'אין תקשורת עם ה-URL. בדקו שהכתובת נכונה ושהפרויקט לא מושהה (Paused).' };
+    if (/invalid api key|apikey|jwt/i.test(m)) return { ok: false, message: 'ה-Anon Key לא תואם לפרויקט.' };
+    return { ok: false, message: m };
   }
 }
